@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="nl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Casino Club Online</title>
+<style>
+:root{--bg:#f3efe6;--card:#fff;--ink:#1c1b19;--mut:#6b675e;--gold:#9a6b00;--btn:#1c1b19;--btnink:#fff;--line:#d9d3c4;--ok:#1f8f4e;--no:#b3342a;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1512;--card:#18211c;--ink:#f2efe7;--mut:#a9a699;--gold:#f0c24b;--btn:#f0c24b;--btnink:#1a1400;--line:#2b3a31}}
+:root[data-theme="dark"]{--bg:#0f1512;--card:#18211c;--ink:#f2efe7;--mut:#a9a699;--gold:#f0c24b;--btn:#f0c24b;--btnink:#1a1400;--line:#2b3a31}
+*{box-sizing:border-box}html,body{margin:0}body{background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+#app{max-width:600px;margin:0 auto;padding:12px}
+header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}h1{font-size:19px;margin:0}h2{font-size:16px;margin:16px 0 6px}
+button,select,input{font:inherit}button{cursor:pointer;border:0;border-radius:12px;padding:11px 14px;background:var(--btn);color:var(--btnink);font-weight:600}
+button.alt{background:transparent;color:var(--ink);border:1.5px solid var(--line)}button:disabled{opacity:.4}
+input,select{padding:10px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);max-width:100%}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;margin:8px 0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}.mut{color:var(--mut);font-size:14px}.gold{color:var(--gold);font-weight:700}
+.code{font:800 44px ui-monospace,Menlo,monospace;letter-spacing:6px;text-align:center;color:var(--gold)}
+.opt{display:block;width:100%;margin:6px 0;text-align:left}.opt.sel{outline:3px solid var(--gold)}
+.pads{display:grid;grid-template-columns:1fr 1fr;gap:10px}.pad{height:90px;border-radius:16px;opacity:.45}.pad.lit{opacity:1;outline:5px solid #fff}
+.big{display:block;width:230px;height:230px;border-radius:50%;margin:10px auto;font-size:30px;color:#fff}
+table{width:100%;border-collapse:collapse}td{padding:5px 3px;border-bottom:1px solid var(--line)}.me{color:var(--gold);font-weight:700}
+.bar{height:10px;background:var(--line);border-radius:9px;overflow:hidden}.bar i{display:block;height:100%;background:var(--gold)}
+#toast{position:static;min-height:22px;text-align:center;font-weight:600}
+</style></head><body><div id="app"></div>
+<script>
+const COL=["#d94b3d","#3d7bd9","#35a85a","#e0b82c"],CN=["Rood","Blauw","Groen","Geel"],$=s=>document.querySelector(s);
+let ws,logged=false,me={},room=null,off=0,name=localStorage.getItem("cc_name")||"",tok="",err="",toastT="",L={},wantCode=new URLSearchParams(location.search).get("room");
+const tk=()=>"cc_token_"+name.toLowerCase();
+function send(o){if(ws&&ws.readyState==1)ws.send(JSON.stringify(o))}
+function conn(){tok=localStorage.getItem(tk())||"";ws=new WebSocket((location.protocol=="https:"?"wss://":"ws://")+location.host);
+ws.onopen=()=>send({t:"hello",name,token:tok});
+ws.onmessage=e=>on(JSON.parse(e.data));
+ws.onclose=()=>{if(logged)setTimeout(conn,2500)}}
+function on(m){if(m.t=="welcome"){logged=true;err="";me=m.me;if(m.token)localStorage.setItem(tk(),m.token);localStorage.setItem("cc_name",name);if(wantCode){send({t:"room.join",code:wantCode});wantCode=null}}
+else if(m.t=="me")me=m.me;else if(m.t=="room"){room=m.room;if(room)off=room.now-Date.now()}
+else if(m.t=="toast"){toastT=m.text+(m.item?" 🎁":"");setTimeout(()=>{toastT="";const t=$("#toast");if(t)t.textContent=""},5000)}
+else if(m.t=="error"){if(m.fatal){logged=false;err=m.text;ws.close()}else{toastT="⚠️ "+m.text;setTimeout(()=>{toastT="";const t=$("#toast");if(t)t.textContent=""},4000)}}
+render()}
+function login(){name=$("#nm").value.trim();if(!/^[A-Za-z0-9_]{3,16}$/.test(name)){err="Naam: 3-16 tekens (letters, cijfers, _).";return render()}err="Verbinden…";render();conn()}
+function render(){const a=$("#app");if(!logged){a.innerHTML=`<h1>🎰 Casino Club Online</h1>${wantCode?`<p class="card">Je bent uitgenodigd voor kamer <b class="gold">${wantCode}</b>. Kies een naam om mee te doen.</p>`:""}<div class="card"><div class="row"><input id="nm" placeholder="Spelersnaam" value="${name}" maxlength="16" autocomplete="off"><button onclick="login()">Betreden</button></div><div class="mut">Geen app of account nodig. Alleen fictieve fiches en XP.</div><div style="color:var(--no)">${err}</div></div>`;return}
+a.innerHTML=`<header><h1>${room?title():"🎰 Lobby"}</h1><span class="gold">${me.name} · niv. ${me.level} · ${me.xp} XP</span></header>${room?roomV():lobbyV()}<div id="toast">${toastT}</div>`;tick()}
+const title=()=>({show:"🎤 Game Show",boss:"👹 Boss Arena",board:"🎲 Bordspel"})[room.game];
+function lobbyV(){const bs=[["dealer","The Golden Dealer (niv. 1)"],["cardmaster","The Card Master (niv. 2)"],["robot","The Lucky Robot (niv. 3)"],["king","The Casino King (niv. 5)"],["mystery","The Mystery Host (niv. 7)"]];
+return`<div class="card"><label><input type="checkbox" id="bots" checked> 🤖 Bots vullen lege plekken aan (ook handig om alleen te spelen)</label><div class="row">Spelers: <select id="size">${[2,3,4,5,6,7,8].map(n=>`<option ${n==6?"selected":""}>${n}</option>`).join("")}</select></div></div>
+<h2>🎤 Game Show</h2><div class="row"><button onclick="go('show','quick')">⚡ Snel spelen</button><button class="alt" onclick="go('show','create')">➕ Kamer maken</button></div>
+<h2>👹 Boss Arena</h2><div class="row"><select id="boss">${bs.map(b=>`<option value="${b[0]}">${b[1]}</option>`).join("")}</select></div><div class="row"><button onclick="go('boss','quick')">⚡ Snel spelen</button><button class="alt" onclick="go('boss','create')">➕ Kamer maken</button></div>
+<h2>🎲 Bordspel</h2><div class="row"><button onclick="go('board','quick')">⚡ Snel spelen</button><button class="alt" onclick="go('board','create')">➕ Kamer maken</button></div>
+<h2>Join met code</h2><div class="row"><input id="jc" placeholder="Code" maxlength="4" style="width:110px;text-transform:uppercase"><button class="alt" onclick="send({t:'room.join',code:$('#jc').value.toUpperCase()})">Join</button></div>`}
+function go(g,w){send({t:"room."+w,game:g,boss:g=="boss"?$("#boss").value:"",size:+$("#size").value,bots:$("#bots").checked})}
+function link(){return location.origin+"/?room="+room.code}
+function share(){const u=link();if(navigator.share)navigator.share({title:"Casino Club Online",text:"Speel mee in mijn kamer!",url:u}).catch(()=>{});else if(navigator.clipboard)navigator.clipboard.writeText(u).then(()=>{toastT="Link gekopieerd!";render()});else prompt("Kopieer de link:",u)}
+function sb(r){const o=r.members.map((m,i)=>[m,i]).sort((a,b)=>b[0].score-a[0].score);let h="";if(r.boss&&r.boss.name)h=`<div class="mut">${r.boss.emoji} ${r.boss.name}: ${r.boss.damage} / ${r.boss.target}</div><div class="bar"><i style="width:${Math.min(100,100*r.boss.damage/Math.max(1,r.boss.target))}%"></i></div>`;
+return`<div class="card">${h}<table>${o.map(([m])=>`<tr class="${m.me?"me":""}"><td>${m.n}${m.fin?" ⭐":""}${m.left?" (weg)":""}</td><td>${m.ans?"✅":""}</td><td align="right">${m.score}</td></tr>`).join("")}</table></div>`}
+function roomV(){const r=room,top=`<div class="row"><button class="alt" onclick="share()">🔗 Deel link</button><button class="alt" onclick="send({t:'room.leave'})">Verlaat kamer</button></div>`;
+if(r.phase=="lobby")return top+`<div class="card"><div class="mut" style="text-align:center">Kamercode</div><div class="code">${r.code}</div><div class="mut" style="text-align:center">Stuur de link: ${link()}</div></div><div class="card"><b>Spelers (${r.members.length}/${r.size})</b><table>${r.members.map(m=>`<tr><td>${m.n}${m.me?" (jij)":""}${m.n==r.hostName?" 👑":""}</td><td align="right">${m.on?"🟢":"⚪️"}</td></tr>`).join("")}</table></div>`+(r.isHost?`<div class="row"><button onclick="send({t:'room.start'})">▶️ Start het spel</button></div>${r.bots?'<div class="mut">Lege plekken worden met bots aangevuld.</div>':""}`:`<p class="mut">Wachten tot ${r.hostName} start…</p>`);
+if(r.phase=="round")return top+roundV(r);
+if(r.phase=="reveal"){const v=r.reveal;return top+`<div class="card"><b>Ronde ${r.roundNo}/${r.roundTotal} · uitslag</b>${v.answerText?`<p class="gold">Juiste antwoord: ${v.answerText}</p>`:""}<table>${v.results.map(x=>`<tr><td>${x.n}</td><td class="mut">${x.detail}</td><td align="right">+${x.gain}</td></tr>`).join("")}</table></div>`+sb(r)}
+if(r.phase=="done"){const x=r.result;return`<div class="card"><h2>${r.game=="boss"?(x.win?"🎉 Baas verslagen!":"💀 De baas was te sterk"):"🏆 Winnaar: "+x.winner}</h2><table>${x.ranking.map((y,i)=>`<tr><td>${["🥇","🥈","🥉"][i]||"#"+(i+1)} ${y.n}</td><td align="right">${r.game=="board"?"vak "+y.score+" · 💰"+y.coins:y.score}</td></tr>`).join("")}</table></div><div class="row"><button onclick="send({t:'room.leave'})">Nieuw spel</button></div>`}
+return top+boardV(r)}
+function boardV(r){const b=r.board,mm=r.members,my=b.turn==r.me,p=b.pending;let act="";
+if(r.phase=="roll")act=my?`<button onclick="send({t:'roll'})">🎲 Gooi de dobbelsteen!</button>`:`<span class="mut">⏳ ${mm[b.turn].n} is aan de beurt</span>`;
+else if(r.phase=="mini")act=`<b>🎯 ${p.q}</b>`+(p.who==r.me?p.options.map((o,i)=>`<button class="opt alt" onclick="send({t:'pick',value:${i}})">${o}</button>`).join(""):`<div class="mut">${mm[b.turn].n} denkt na…</div>`);
+else if(r.phase=="duel")act=p.who==r.me?`<b>⚔️ Kies je tegenstander</b><div class="row">${p.targets.map(t=>`<button onclick="send({t:'pick',value:${t}})">${mm[t].n}</button>`).join("")}</div>`:`<span class="mut">⚔️ ${mm[b.turn].n} kiest een tegenstander…</span>`;
+return`<div class="card"><div class="gold">${b.event}</div>${b.dice?`<div style="font-size:44px">${"⚀⚁⚂⚃⚄⚅"[b.dice-1]}</div>`:""}<div class="row">${act}</div></div><div class="card">${mm.map((m,i)=>`<div class="${m.me?"me":""}">${m.n}${i==b.turn?" ◀︎":""} · vak ${m.pos}/40 · 💰${m.coins}<div class="bar"><i style="width:${100*m.pos/40}%"></i></div></div>`).join("")}</div>`}
+function roundV(r){const rd=r.round,d=rd.data,k=rd.kind,mm=r.members[r.me]||{};const key=r.roundNo+k;if(L.key!=key)L={key,pick:-1,sent:0,seq:[],taps:0,early:0};
+const spec=r.final&&!mm.fin,lock=spec||mm.ans||L.sent||L.pick>=0;let b="";
+const opts=a=>a.map((o,i)=>`<button class="opt alt ${L.pick==i?"sel":""}" ${lock?"disabled":""} onclick="pick(${i})">${o}</button>`).join("");
+if(k=="quiz")b=`<h2>${d.q}</h2>`+opts(d.options);
+else if(k=="color")b=`<h2 style="font-size:46px;margin:6px;color:${COL[d.ink]}">${d.word}</h2><div class="mut">Kies de KLEUR van de letters</div>`+opts(d.options);
+else if(k=="logic")b=`<h2>${d.seq.join(", ")}, ?</h2>`+opts(d.options.map(String));
+else if(k=="memory")b=`<div id="mm" class="mut"></div><div class="pads">${COL.map((c,i)=>`<button class="pad" data-i="${i}" style="background:${c}" ${spec||mm.ans||L.sent?"disabled":""} onclick="padTap(${i})"></button>`).join("")}</div>`;
+else if(k=="reaction")b=`<button class="big" style="background:${L.sent?"#777":rd.go?"var(--ok)":"var(--no)"}" ${lock?"disabled":""} onclick="L.sent=1;L.early=!rd.go;send({t:'ans',value:1});render()">${L.sent?(L.early?"Te vroeg! 😬":"Verstuurd ✅"):rd.go?"TIK NU!":"Wacht…"}</button>`;
+else if(k=="number")b=`<h2>Raad het getal (1-100)</h2><div class="code" id="gv">${L.g||50}</div><input type="range" min="1" max="100" value="${L.g||50}" style="width:100%" ${lock?"disabled":""} oninput="L.g=+this.value;$('#gv').textContent=this.value"><div class="row"><button ${lock?"disabled":""} onclick="L.sent=1;send({t:'ans',value:L.g||50});render()">Gok versturen</button></div>`;
+else if(k=="arcade")b=`<h2>⭐ Tik zoveel mogelijk! Score: <span id="tp">${L.taps}</span></h2><button class="big" style="background:var(--btn);color:var(--btnink)" ${spec?"disabled":""} onclick="L.taps++;$('#tp').textContent=L.taps;send({t:'ans',value:L.taps})">⭐</button>`;
+return`<div class="card"><div class="row" style="justify-content:space-between"><b>Ronde ${r.roundNo}/${r.roundTotal}${r.final?" · 🔥 FINALE x2":""}</b><b id="cd"></b></div>${spec?'<div class="mut">👀 Alleen finalisten spelen deze ronde.</div>':""}${b}${lock&&!spec&&k!="memory"&&k!="arcade"?'<p class="mut">✅ Verstuurd. Wachten op de anderen…</p>':""}</div>`+sb(r)}
+function pick(i){if(L.pick>=0)return;L.pick=i;send({t:"ans",value:i});render()}
+function padTap(i){L.seq.push(i);if(L.seq.length==room.round.data.seq.length){L.sent=1;send({t:"ans",value:L.seq});render()}}
+function tick(){if(!room)return;const now=Date.now()+off;if(room.phase=="round"){const rd=room.round,e=$("#cd");if(e)e.textContent="⏱ "+Math.max(0,Math.ceil((rd.endsAt-now)/1000))+"s";
+if(rd.kind=="memory"){const d=rd.data,show=now<d.showUntil,t=now-rd.start-600,ix=Math.floor(t/700),lit=show&&t>=0&&ix>=0&&ix<d.seq.length&&t%700<520?d.seq[ix]:-1;document.querySelectorAll(".pad").forEach(p=>p.classList.toggle("lit",+p.dataset.i==lit));const m=$("#mm");if(m)m.textContent=show?"👀 Onthoud de volgorde!":(L.sent?"✅ Verstuurd":"Jouw beurt: tik de volgorde ("+L.seq.length+"/"+d.seq.length+")");document.querySelectorAll(".pad").forEach(p=>p.disabled=show||!!L.sent)}}
+else if(room.phase=="reveal"||room.phase=="roll"||room.phase=="mini"||room.phase=="duel"){}}
+setInterval(tick,200);render();if(name&&wantCode===null&&false)login();
+</script></body></html>
